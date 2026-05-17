@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>示例页面</title>
+  <style>
+  body {
+    background-color: #97f9cb;
+  }
+  /* 波纹按钮基础样式（最小改动） */
+  #magicRippleBtn {
+    position: relative; /* 为绝对定位的波纹做定位上下文 */
+    overflow: hidden;   /* 隐藏溢出，保持圆形效果 */
+    -webkit-appearance: none; /* 去除系统默认样式，确保自定义样式生效 */
+    appearance: none;
+    border: none;
+    border-radius: 9999px; /* 圆角：可按需修改为更大值（如 9999px 做成胶囊） */
+    background: linear-gradient(180deg, #7fd9ff, #3d8fc5); /* 按钮背景色，改成你想要的颜色 */
+    color: #ffffff; /* 文本颜色 */
+    padding: 10px 18px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: box-shadow .15s ease, transform .08s ease;
+    display: inline-block;
+    text-align: center;
+  }
+
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    background: rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    animation: ripple-fade 600ms ease-out forwards;
+    z-index: 0; /* 放在按钮内容（文字）下方 */
+  }
+
+  /* 让按钮文字显示在波纹之上 */
+  .btn-text {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes ripple-fade {
+    to {
+      transform: scale(1);
+      opacity: 0;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>hello world!</h1>
+  <p>如你们所见我正在写一个自己的私人博客</p>
+  <p>我会在这里记录一大堆有的没的</p>
+  <p>毕竟你知道我tian这个人就是莫名其妙啊</p>
+  <p>总之用ai整了个按钮,点击试试</p>
+  <button id="magicRippleBtn" style="display: block; width: 120px; margin-left: auto; margin-right: auto;">
+    <span class="btn-text">✨ Tap ✨</span>
+  </button>
+</body>
+<script>
+  (function() {
+       // 获取按钮元素
+      const btn = document.getElementById('magicRippleBtn');
+      if (!btn) return;
+        /**
+         * 创建波纹并添加到按钮
+         * @param {number} x - 相对于按钮左边缘的 X 坐标 (px)
+         * @param {number} y - 相对于按钮上边缘的 Y 坐标 (px)
+         * @param {number} width - 按钮宽度
+         * @param {number} height - 按钮高度
+         */
+      function createRipple(x, y, width, height) {
+        // 计算波纹覆盖整个按钮所需的最小半径 (对角线长度)
+        // 使用勾股定理保证波纹从点击点扩散后一定能完全覆盖按钮所有角落
+        const radius = Math.hypot(width, height);
+        const diameter = radius * 2;
+        // 创建波纹元素
+        const rippleDiv = document.createElement('div');
+        rippleDiv.classList.add('ripple');
+            
+        // 设置波纹尺寸和位置 (基于点击点为中心)
+        // left/top = 点击坐标 - 半径，使点击点恰为圆心
+        const leftPos = x - radius;
+        const topPos = y - radius;
+        
+        rippleDiv.style.width = `${diameter}px`;
+        rippleDiv.style.height = `${diameter}px`;
+        rippleDiv.style.left = `${leftPos}px`;
+        rippleDiv.style.top = `${topPos}px`;
+          
+        // 可选：微调避免受边框影响，但由于绝对定位和基于按钮内部坐标，表现完美
+        // 添加到按钮内部
+        btn.appendChild(rippleDiv);
+          
+        // 动画结束后自动移除波纹元素，避免内存堆积
+        const onAnimationEnd = () => {
+          if (rippleDiv && rippleDiv.parentNode) {
+            rippleDiv.removeEventListener('animationend', onAnimationEnd);
+            rippleDiv.remove();
+          }
+        };
+          rippleDiv.addEventListener('animationend', onAnimationEnd, { once: true });
+            
+            // 极少数情况如果动画没能触发 (如性能 or 样式未加载) 设置后备移除
+            // 设置800ms后备清除，正常不会执行但保证健壮性
+          setTimeout(() => {
+            if (rippleDiv && rippleDiv.parentNode) {
+              rippleDiv.removeEventListener('animationend', onAnimationEnd);
+              rippleDiv.remove();
+            }
+          }, 800);
+        }
+        
+        /**
+         * 处理按下事件，获取精确点击坐标 (相对于按钮)
+         * 同时兼容鼠标与触摸屏 (pointerdown)
+         * @param {PointerEvent} event - 指针事件
+         */
+        function onPointerDown(event) {
+          // 确保按钮尚未被禁用 (无需禁用但保留扩展)
+          if (btn.disabled) return;
+            
+          // 获取按钮相对于视口的位置信息
+          const rect = btn.getBoundingClientRect();
+          // 获取点击点相对于视口的坐标
+          let clientX, clientY;
+            
+            // 从事件中提取正确坐标 (支持触摸和鼠标)
+           if (event.touches) {
+                // 针对触摸事件的额外保障 (但pointerdown已经归一化，其实无需特殊处理，但稳健)
+                const touch = event.touches[0];
+                if (touch) {
+                    clientX = touch.clientX;
+                    clientY = touch.clientY;
+                } else {
+                    clientX = event.clientX;
+                    clientY = event.clientY;
+                }
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            
+            // 计算相对于按钮左上角的偏移量 (坐标归一化到按钮内部)
+            let offsetX = clientX - rect.left;
+            let offsetY = clientY - rect.top;
+            
+            // 边界保护：如果由于某些怪异情况（缩放、圆角边界点击）溢出范围，限制在按钮内
+            offsetX = Math.min(Math.max(0, offsetX), rect.width);
+            offsetY = Math.min(Math.max(0, offsetY), rect.height);
+            
+            // 获取按钮宽高 (使用实际布局宽高，保证对角线尺寸)
+            const btnWidth = rect.width;
+            const btnHeight = rect.height;
+            
+            // 生成优雅波纹 (基于实际物理像素)
+            createRipple(offsetX, offsetY, btnWidth, btnHeight);
+        }
+        
+        // 核心事件: pointerdown 统一处理鼠标、触摸、笔输入, 一次绑定全部覆盖
+        btn.addEventListener('pointerdown', onPointerDown);
+        
+        // 防止移动端长按时出现系统菜单或选中文本干扰 (但保留轻微体验)
+        btn.addEventListener('contextmenu', (e) => {
+            // 仅禁止右键菜单避免干扰 (波纹依旧触发)
+            e.preventDefault();
+            return false;
+        });
+        
+        // 可选: 针对触摸设备避免页面滚动因为按下而产生额外效果 (无需prevent滚动, 保留自然滚动)
+        // 但为了极致平滑，不对滚动干扰。保持原汁原味。
+        
+        // 额外增强: 如果用户在按钮上快速连续点击, 每个点击都将独立生成波纹, 体验顺滑
+        // 性能优秀，现代浏览器对动画移除处理完善
+        
+        console.log('✨ 波纹按钮已就绪，深蓝色圆角+动态涟漪特效 ✨');
+    })();
+    
+</script>
+</html>
